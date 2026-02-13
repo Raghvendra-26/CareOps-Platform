@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/mongodb";
 import Appointment from "@/models/Appointment";
+import Customer from "@/models/Customer";
 
 // Get all appointments
 export async function GET(params) {
@@ -21,5 +22,7 @@ export async function POST(req) {
     service: body.service,
     date: body.date,
   });
-  return Response.json(appointment);
+
+  const populated = await Appointment.findById(appointment._id).populate("customerId")
+  return Response.json(populated);
 }

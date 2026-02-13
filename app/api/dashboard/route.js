@@ -10,12 +10,14 @@ export async function GET() {
   await connectDB();
 
   const leads = await Lead.countDocuments();
+  const qualifiedLeads = await Lead.countDocuments({status : "Qualified"});
   const customers = await Customer.countDocuments();
 
   const scheduled = await Appointment.countDocuments({ status: "Scheduled" });
   const cancelled = await Appointment.countDocuments({ status: "Cancelled" });
   const completed = await Appointment.countDocuments({ status: "Completed" });
 
+  const totalItems = await InventoryItem.countDocuments()
   const lowStock = await InventoryItem.countDocuments({
     quantity: { $lte: 5 },
   });
@@ -25,8 +27,12 @@ export async function GET() {
 
   return Response.json({
     leads,
+    qualifiedLeads,
     customers,
-    appointments: { scheduled, cancelled, completed },
+    scheduled,
+    cancelled,
+    completed,
+    totalItems,
     lowStock,
     forms,
     responses,

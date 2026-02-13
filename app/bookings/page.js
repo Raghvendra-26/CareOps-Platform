@@ -1,114 +1,125 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle, XCircle } from "lucide-react";
 
-export default function BookingPage() {
-  // Customers (later will come from db)
-  const [customers] = useState([
-    { id: 1, name: "Raghvendra Singh" },
-    { id: 2, name: "Parvendra Singh" },
-    { id: 3, name: "Vikram Singh" },
-  ]);
+import {
+  getAppointments,
+  createAppointment,
+  updateAppointmentStatus,
+  deleteAppointment,
+  getCustomers,
+} from "@/lib/api";
 
-  // Bookings State
-  const [bookings, setBookings] = useState([
-    {
-      id: 101,
-      customer: "Amit Singh",
-      service: "Consultation",
-      date: "2026-02-15",
-      status: "Scheduled",
-    },
-    {
-      id: 102,
-      customer: "Priya Verma",
-      service: "Follow-up",
-      date: "2026-02-16",
-      status: "Completed",
-    },
-    {
-      id: 103,
-      customer: "Rahul Sharma",
-      service: "Demo Meeting",
-      date: "2026-02-18",
-      status: "Cancelled",
-    },
-  ]);
+export default function BookingsPage() {
+  // Appointments state
+  const [appointments, setAppointments] = useState([]);
 
-  // Form State
-  const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [date, setDate] = useState("");
+  // Customers for dropdown
+  const [customers, setCustomers] = useState([]);
+
+  // Form state
+  const [customerId, setCustomerId] = useState("");
   const [service, setService] = useState("");
+  const [date, setDate] = useState("");
 
-  // Add Booking Function
-  const addBooking = () => {
-    if (!selectedCustomer || !date || !service) {
-      toast.error("Missing Fields ❌", {
-        description: "Please fill all booking details.",
-      });
+  // Load data once
+  const fetchData = async () => {
+    try {
+      const apptData = await getAppointments();
+      const custData = await getCustomers();
+
+      setAppointments(apptData);
+      setCustomers(custData);
+    } catch (err) {
+      toast.error("Failed to load bookings ❌");
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // ----------------------------
+  // Add Appointment
+  // ----------------------------
+  const handleAddBooking = async () => {
+    if (!customerId || !service || !date) {
+      toast.error("Fill all fields ❌");
       return;
     }
 
-    const newBooking = {
-      id: Date.now(),
-      customer: selectedCustomer,
-      service,
-      date,
-      status: "Scheduled",
-    };
+    try {
+      const newBooking = await createAppointment({
+        customerId,
+        service,
+        date,
+      });
 
-    setBookings((prev) => [newBooking, ...prev]);
+      // ✅ Update local state instantly
+      setAppointments((prev) => [newBooking, ...prev]);
 
-    toast.success("Booking Created ✅", {
-      description: `Appointment scheduled for ${selectedCustomer}`,
-    });
+      toast.success("Booking Created ✅");
 
-    // Reset form
-    setSelectedCustomer("");
-    setService("");
-    setDate("");
-  };
-
-  // Booking status style
-  const statusStyle = {
-    Scheduled: "bg-blue-100 text-blue-700",
-    Completed: "bg-green-100 text-green-700",
-    Cancelled: "bg-red-100 text-red-700",
-  };
-
-  // Update booking status
-  const updateStatus = (id, newStatus) => {
-    setBookings((prev) =>
-      prev.map((b) => {
-        if (!b) return b; // keep safe
-
-        if (b.id === id) {
-          return {
-            ...b,
-            status: newStatus,
-          };
-        }
-
-        return b; // IMPORTANT: return unchanged booking
-      }),
-    );
-
-    if (newStatus == "Cancelled") {
-      toast.error("Booking Cancelled ❌");
-    } else {
-      toast.success("Booking Completed ✅");
+      // Reset form
+      setCustomerId("");
+      setService("");
+      setDate("");
+    } catch (err) {
+      toast.error("Failed to create booking ❌");
     }
   };
 
-  // split bookings into separate lists
-  const scheduledBookings = bookings.filter((b) => b.status === "Scheduled");
-  const completedBookings = bookings.filter((b) => b.status === "Completed");
-  const cancelledBookings = bookings.filter((b) => b.status === "Cancelled");
+  // ----------------------------
+  // Update Status (Gemini Style)
+  // ----------------------------
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await updateAppointmentStatus(id, newStatus);
+
+      // ✅ Update local state instantly
+      setAppointments((prev) =>
+        prev.map((appt) =>
+          appt._id === id ? { ...appt, status: newStatus } : appt,
+        ),
+      );
+
+      toast.success("Status Updated 🔄");
+    } catch (err) {
+      toast.error("Status update failed ❌");
+    }
+  };
+
+  // ----------------------------
+  // Delete Booking
+  // ----------------------------
+  const handleDelete = async (id) => {
+    try {
+      await deleteAppointment(id);
+
+      // ✅ Remove instantly
+      setAppointments((prev) => prev.filter((a) => a._id !== id));
+
+      toast.success("Booking Deleted 🗑️");
+    } catch (err) {
+      toast.error("Delete failed ❌");
+    }
+  };
+
+  // Badge colors
+  const statusStyle = {
+    Scheduled: "bg-blue-100 text-blue-700",
+    Completed: "bg-green-100 text-green-700",
+    Cancelled: "bg-gray-200 text-gray-600",
+  };
+
+  const scheduled = appointments.filter((a) => a.status === "Scheduled");
+  const completed = appointments.filter((a) => a.status === "Completed");
+  const cancelled = appointments.filter((a) => a.status === "Cancelled");
 
   return (
     <div className="space-y-10 px-2 sm:px-6 lg:px-10 py-6">
@@ -116,93 +127,78 @@ export default function BookingPage() {
       <div>
         <h1 className="text-4xl font-bold">Bookings 📅</h1>
         <p className="text-gray-500 mt-2">
-          Schedule and manage customer appointments.
+          Manage customer appointments in CareOps.
         </p>
       </div>
 
-      {/* Add Booking Form */}
+      {/* Create Booking */}
       <Card className="shadow-md">
         <CardContent className="p-6 space-y-4">
-          <h2 className="text-2xl font-semibold">➕ Create Appointment</h2>
+          <h2 className="text-2xl font-semibold">➕ Create Booking</h2>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             {/* Customer Dropdown */}
             <select
-              value={selectedCustomer}
-              onChange={(e) => setSelectedCustomer(e.target.value)}
-              className="border rounded-md px-3 py-2 text-sm"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
             >
-              <option value="">select customer</option>
+              <option value="">Select Customer</option>
               {customers.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name}
+                <option key={c._id} value={c._id}>
+                  {c.name} ({c.phone})
                 </option>
               ))}
             </select>
 
-            {/* Service Input */}
+            {/* Service */}
             <Input
               placeholder="Service (e.g. Consultation)"
               value={service}
               onChange={(e) => setService(e.target.value)}
             />
 
-            {/* Date Picker */}
+            {/* Date */}
             <Input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
-
-          <Button className="w-full sm:w-fit" onClick={addBooking}>
+          <Button onClick={handleAddBooking} className="w-full sm:w-fit">
             Add Booking
           </Button>
         </CardContent>
       </Card>
 
-      {/* Scheduled Appointments */}
+      {/* Appointments List */}
       <Card className="shadow-md">
         <CardContent className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">
-            📌 Scheduled Appointments
-          </h2>
-          {scheduledBookings.length === 0 ? (
-            <p className="text-gray-500">No Scheduled bookings.</p>
-          ) : (
-            <BookingTable
-              bookings={scheduledBookings}
-              updateStatus={updateStatus}
-              editable={true}
-            />
-          )}
-        </CardContent>
-      </Card>
+          <h2 className="text-2xl font-semibold mb-4">📌 Appointments</h2>
 
-      {/* Completed Appointments */}
-      <Card className="shadow-md">
-        <CardContent className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">
-            ✅ Completed Appointments
-          </h2>
-          {completedBookings.length === 0 ? (
-            <p className="text-gray-500">No Completed bookings.</p>
+          {appointments.length === 0 ? (
+            <p className="text-gray-500">No appointments yet.</p>
           ) : (
-            <BookingTable bookings={completedBookings} editable={false} />
-          )}
-        </CardContent>
-      </Card>
+            <div className="space-y-8">
+              <AppointmentTable
+                title="📌 Scheduled Appointments"
+                data={scheduled}
+                badgeColor="bg-blue-100 text-blue-700"
+                handleStatusChange={handleStatusChange}
+              />
 
-      {/* Cancelled Appointments */}
-      <Card className="shadow-md">
-        <CardContent className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">
-            ❌ Cancelled Appointments
-          </h2>
-          {cancelledBookings.length === 0 ? (
-            <p className="text-gray-500">No Cancelled bookings.</p>
-          ) : (
-            <BookingTable bookings={cancelledBookings} editable={false} />
+              <AppointmentTable
+                title="✅ Completed Appointments"
+                data={completed}
+                badgeColor="bg-green-100 text-green-700"
+              />
+
+              <AppointmentTable
+                title="❌ Cancelled Appointments"
+                data={cancelled}
+                badgeColor="bg-gray-200 text-gray-600"
+              />
+            </div>
           )}
         </CardContent>
       </Card>
@@ -210,71 +206,66 @@ export default function BookingPage() {
   );
 }
 
-// Reusable table component
-function BookingTable({ bookings, updateStatus, editable }) {
+function AppointmentTable({ title, data, badgeColor,handleStatusChange }) {
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-100 text-left">
-          <tr>
-            <th className="p-4">Customer</th>
-            <th className="p-4">Service</th>
-            <th className="p-4">Date</th>
-            {/* only show action column if editable */}
-            {editable && <th className="p-4">Move To</th>}
-          </tr>
-        </thead>
+    <Card className="shadow-md">
+      <CardContent className="p-6">
+        <h2 className="text-2xl font-semibold mb-4">
+          {title} ({data.length})
+        </h2>
 
-        <tbody>
-          {bookings.map((b) => {
-            const isCompleted = b.status === "Completed";
-            const isCancelled = b.status === "Cancelled";
+        {data.length === 0 ? (
+          <p className="text-gray-500">No appointments.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100 text-left">
+                <tr>
+                  <th className="p-4">Customer</th>
+                  <th className="p-4">Service</th>
+                  <th className="p-4">Date</th>
+                  <th className="p-4">Status</th>
+                </tr>
+              </thead>
 
-            return (
-              <tr
-                key={b.id}
-                className={`border-t hover:bg-gray-50 ${
-                  isCancelled ? "bg-gray-50 text-gray-400" : ""
-                }`}
-              >
-                {/* Customer */}
-                <td className="p-4 font-medium flex items-center gap-2">
-                  {/* Completed Icon */}
-                  {isCompleted && (
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                  )}
+              <tbody>
+                {data.map((appt) => (
+                  <tr
+                    key={appt._id}
+                    className={`border-t ${appt.status === "Cancelled"
+                        ? "opacity-50"
+                        : "hover:bg-gray-50"}`}
+                  >
+                    <td className="p-4 font-medium">{appt.customerId?.name}</td>
+                    <td className="p-4">{appt.service}</td>
+                    <td className="p-4">{appt.date}</td>
 
-                  {/* Cancelled Icon */}
-                  {isCancelled && <XCircle className="w-4 h-4 text-red-500" />}
+                    <td className="p-4 space-y-2">
+                      {/* Badge always visible */}
+                      <Badge className={badgeColor}>{appt.status}</Badge>
 
-                  {b.customer}
-                </td>
-
-                {/* Service */}
-                <td className="p-4">{b.service}</td>
-
-                {/* Date */}
-                <td className="p-4">{b.date}</td>
-
-                {/* Dropdown only for Scheduled */}
-                {editable && (
-                  <td className="p-4">
-                    <select
-                      value={b.status}
-                      onChange={(e) => updateStatus(b.id, e.target.value)}
-                      className="border rounded-md px-2 py-1 text-sm"
-                    >
-                      <option value="Scheduled">Scheduled</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                      {/* Dropdown only if Scheduled */}
+                      {appt.status === "Scheduled" && (
+                        <select
+                          value={appt.status}
+                          onChange={(e) =>
+                            handleStatusChange(appt._id, e.target.value)
+                          }
+                          className="border rounded-md px-2 py-1 text-sm"
+                        >
+                          <option value="Scheduled">Scheduled</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

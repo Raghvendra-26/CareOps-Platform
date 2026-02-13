@@ -28,7 +28,7 @@ export default function SettingsPage() {
       {/* Heading */}
       <div>
         <h1 className="text-4xl font-bold">Settings ⚙️</h1>
-        <p className="text-gray-50 mt-2">
+        <p className="text-gray-500 mt-2">
           Manage your business profile and preferences.
         </p>
       </div>

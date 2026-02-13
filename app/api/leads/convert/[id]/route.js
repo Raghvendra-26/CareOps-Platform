@@ -7,8 +7,10 @@ import Lead from "@/models/Lead";
 export async function POST(req, { params }) {
   await connectDB();
 
+  const {id} = await params
+
   // find lead
-  const lead = await Lead.findById(params.id);
+  const lead = await Lead.findById(id);
   if (!lead) {
     return Response.json({ error: "Lead not found" }, { status: 404 });
   }
@@ -20,7 +22,7 @@ export async function POST(req, { params }) {
   });
 
   // Remove lead
-  await Lead.findByIdAndDelete(params.id);
+  await Lead.findByIdAndDelete(id);
 
   return Response.json({
     message: "Lead converted successfully",

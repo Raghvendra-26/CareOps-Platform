@@ -1,15 +1,15 @@
 import { connectDB } from "@/lib/mongodb";
 import Lead from "@/models/Lead";
 
-
 // update lead status
 export async function PATCH(req,{params}){
     await connectDB()
+    const {id} = await params
     const body = await req.json()
     const updatedLead = await Lead.findByIdAndUpdate(
-        params.id,
+        id,
         {status : body.status},
-        {new : true}
+        {returnDocument : "after"}
     )
     return Response.json(updatedLead)
 }
@@ -17,6 +17,7 @@ export async function PATCH(req,{params}){
 // Delete lead 
 export async function DELETE(req,{params}) {
     await connectDB()
-    await Lead.findByIdAndDelete(params.id)
+    const { id } = await params;
+    await Lead.findByIdAndDelete(id)
     return Response.json({message : "Lead deleted"})
 }

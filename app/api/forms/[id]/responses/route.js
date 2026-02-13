@@ -4,8 +4,9 @@ import ResponseModel from "@/models/Response";
 // get responses for a form
 export async function GET(req, { params }) {
   await connectDB();
+  const {id} = await params
   const responses = await ResponseModel.find({
-    formId: params.id,
+    formId: id,
   }).sort({ created: -1 });
   return Response.json(responses);
 }
@@ -13,9 +14,10 @@ export async function GET(req, { params }) {
 // Post a submit response
 export async function POST(req, { params }) {
   await connectDB();
+  const {id} = await params
   const body = await req.json();
   const response = await ResponseModel.create({
-    formId: params.id,
+    formId: id,
     customerName: body.customerName,
     answers: body.answers,
   });

@@ -1,27 +1,16 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card,CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+
+import { getForms, createForm, getResponses, submitResponse } from "@/lib/api";
 
 export default function FormsPage() {
   // Forms State
-  const [forms, setForms] = useState([
-    {
-      id: 1,
-      title: "Customer Feedback Form",
-      questions: ["How was your experience?", "Any Suggestions"],
-      responses: [
-        {
-          id: 101,
-          customer: "Amit Singh",
-          answers: ["Great service!", "Keep it up"],
-        },
-      ],
-    },
-  ]);
+  const [forms, setForms] = useState([]);
 
   // Form Builder state
   const [formTitle, setFormTitle] = useState("");
@@ -36,16 +25,30 @@ export default function FormsPage() {
   // Selected form for viewing Responses
   const [selectedForm, setSelectedForm] = useState(null);
 
+  // Fetch forms
+  const fetchForms = async () => {
+    try {
+      const data = await getForms();
+      setForms(data);
+    } catch (error) {
+      toast.error("Failed to load forms ❌");
+    }
+  };
+
+  useEffect(() => {
+    fetchForms();
+  }, []);
+
   // Add Question
   const addQuestion = () => {
-    if (!questionText) return;
+    if (!questionText.trim()) return;
 
-    setQuestions([...questions, questionText]);
+    setQuestions((prev) => [...prev, questionText]);
     setQuestionText("");
   };
 
   // Create new form
-  const createForm = () => {
+  const handleCreateForm = async () => {
     if (!formTitle || questions.length === 0) {
       toast.error("Form Incomplete ❌", {
         description: "Add title and atleast 1 question",
@@ -53,22 +56,33 @@ export default function FormsPage() {
       return;
     }
 
-    const newForm = {
-      id: Date.now(),
-      title: formTitle,
-      questions,
-      responses: [],
-    };
+    try {
+      const newForm = await createForm({
+        title: formTitle,
+        questions,
+      });
 
-    setForms([newForm, ...forms]);
+      setForms((prev) => [newForm, ...prev]);
 
-    toast.success("From created ✅", {
-      description: `${formTitle} is ready to use.`,
-    });
+      toast.success("From created ✅");
 
-    // Reset Builder
-    setFormTitle("");
-    setQuestions([]);
+      // Reset Builder
+      setFormTitle("");
+      setQuestionText("");
+      setQuestions([]);
+    } catch (error) {
+      toast.error("Failed to create Form ❌");
+    }
+  };
+
+  // view responses
+  const handleViewResponses = async (form) => {
+    try {
+      const freshResponses = await getResponses(form._id);
+      setSelectedForm({ ...form, responses: freshResponses });
+    } catch (error) {
+      toast.error("Could not load responses ❌");
+    }
   };
 
   //   Open response modal
@@ -78,33 +92,39 @@ export default function FormsPage() {
     setResponseAnswers(new Array(form.questions.length).fill(""));
   };
 
-  //   Submit Response
-  const submitResponse = () => {
-    if (!responseCustomer) {
+  // Submit Response
+  const handleSubmitResponse = async () => {
+    if (!responseCustomer.trim()) {
       toast.error("Customer name required ❌");
       return;
     }
 
-    const newResponse = {
-      id: Date.now(),
-      customer: responseCustomer,
-      answers: responseAnswers,
-    };
+    try {
+      const newResponse = await submitResponse(responseForm._id, {
+        customerName: responseCustomer,
+        answers: responseAnswers,
+      });
 
-    setForms((prev) =>
-      prev.map((f) =>
-        f.id === responseForm.id
-          ? { ...f, responses: [newResponse, ...f.responses] }
-          : f,
-      ),
-    );
+      // update ui instantly
+      setForms((prev) =>
+        prev.map((f) =>
+          f._id === responseForm._id
+            ? {
+                ...f,
+                responses: [newResponse, ...(f.responses || [])],
+                responseCount: (f.responseCount || 0) + 1,
+              }
+            : f,
+        ),
+      );
 
-    toast.success("Response Submitted 📩", {
-      description: "Response added successfully",
-    });
+      toast.success("Response Submitted 📩");
 
-    // close modal
-    setResponseForm(null);
+      // close modal
+      setResponseForm(null);
+    } catch (error) {
+      toast.error("Failed to submit response ❌");
+    }
   };
 
   return (
@@ -153,7 +173,7 @@ export default function FormsPage() {
           <Button
             disabled={!formTitle || questions.length === 0}
             className="w-full sm:w-fit"
-            onClick={createForm}
+            onClick={handleCreateForm}
           >
             Create Form
           </Button>
@@ -171,14 +191,14 @@ export default function FormsPage() {
             <div className="space-y-4">
               {forms.map((form) => (
                 <div
-                  key={form.id}
+                  key={form._id}
                   className="border rounded-lg p-4  flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                 >
                   <div>
                     <h3 className="font-semibold text-lg">{form.title}</h3>
                     <p className="text-sm text-gray-500">
                       Questions : {form.questions.length} | Responses:{" "}
-                      {form.responses.length}
+                      {form.responseCount || 0}
                     </p>
                   </div>
 
@@ -190,7 +210,7 @@ export default function FormsPage() {
                       Submit Response
                     </Button>
 
-                    <Button onClick={() => setSelectedForm(form)}>
+                    <Button onClick={() => handleViewResponses(form)}>
                       View Responses
                     </Button>
                   </div>
@@ -234,7 +254,7 @@ export default function FormsPage() {
 
             {/* Buttons */}
             <div className="flex gap-2 flex-wrap">
-              <Button onClick={submitResponse}>Submit Response</Button>
+              <Button onClick={handleSubmitResponse}>Submit Response</Button>
               <Button variant="outline" onClick={() => setResponseForm(null)}>
                 Cancel
               </Button>
@@ -264,8 +284,8 @@ export default function FormsPage() {
                   </thead>
                   <tbody>
                     {selectedForm.responses.map((r) => (
-                      <tr key={r.id} className="border-t hover:bg-gray-50">
-                        <td className="p-4 font-medium">{r.customer}</td>
+                      <tr key={r._id} className="border-t hover:bg-gray-50">
+                        <td className="p-4 font-medium">{r.customerName}</td>
                         <td className="p-4">{r.answers.join(" | ")}</td>
                       </tr>
                     ))}

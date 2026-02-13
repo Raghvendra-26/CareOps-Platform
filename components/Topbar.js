@@ -1,40 +1,32 @@
 "use client";
 
-import Link from "next/link";
 import { Button } from "./ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-
-const menu = [
-  { name: "Dashboard", path: "/dashboard" },
-  { name: "CRM", path: "/crm" },
-  { name: "Bookings", path: "/bookings" },
-  { name: "Forms", path: "/forms" },
-  { name: "Inventory", path: "/inventory" },
-];
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
+import Sidebar from "./Sidebar";
 
 export default function Topbar() {
   return (
     <header className="flex items-center justify-between border-b bg-white px-4 py-3 md:hidden">
       <h1 className="text-xl font-bold text-blue-600">CareOps</h1>
 
-      {/* Mobile Sidebar */}
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="outline">Menu</Button>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Menu className="w-4 h-4" />
+            Menu
+          </Button>
         </SheetTrigger>
 
-        <SheetContent side="left" className="p-6">
-          <nav className="space-y-6">
-            {menu.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className="block rounded-lg px-3 py-2 hover:bg-gray-100"
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
+        {/* side="left" makes it feel like a real sidebar sliding out */}
+        <SheetContent side="left" className="p-0 w-64">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+          <Sidebar />
         </SheetContent>
       </Sheet>
     </header>
