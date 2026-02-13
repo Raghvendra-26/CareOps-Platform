@@ -8,17 +8,17 @@ const UserSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      unique : true,
-      required : true
+      unique: true,
+      required: true,
     },
-    passwordHash : String,
+    passwordHash: String,
     role: {
       type: String,
-      enum : ["Admin","Staff","Viewer"],
-      default : "Staff"
+      enum: ["Admin", "Staff", "Viewer"],
+      default: "Staff",
     },
   },
   { timestamps: true },
 );
 
-export default mongoose.model("User",UserSchema)
+export default mongoose.models.User || mongoose.model("User", UserSchema);

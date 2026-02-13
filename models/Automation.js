@@ -18,4 +18,5 @@ const AutomationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-export default mongoose.model("Automation", AutomationSchema);
+export default mongoose.models.Automation ||
+  mongoose.model("Automation", AutomationSchema);
